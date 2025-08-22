@@ -1,4 +1,4 @@
-# --- FINAL APP CODE FOR RENDER ---
+# --- FINAL APP CODE FOR RENDER (READY TO DEPLOY) ---
 import os
 import json
 import time
@@ -19,16 +19,19 @@ from firebase_admin import credentials, firestore
 app = Flask(__name__)
 CORS(app)
 
+# ✅ Root route for Render health check
+@app.route("/")
+def home():
+    return {"status": "ok", "message": "Service is live 🚀"}
+
 # Initialize Firebase from an environment variable for Render
 try:
     if not firebase_admin._apps:
         firebase_creds_json_str = os.environ.get('FIREBASE_CREDENTIALS_JSON')
         if firebase_creds_json_str:
             firebase_creds_dict = json.loads(firebase_creds_json_str)
-            # --- FIX FOR RENDER ---
-            # This line automatically corrects the newline characters in the private key.
+            # Fix for Render private key line breaks
             firebase_creds_dict['private_key'] = firebase_creds_dict['private_key'].replace('\\n', '\n')
-            
             cred = credentials.Certificate(firebase_creds_dict)
             firebase_admin.initialize_app(cred)
             print("✅ Firebase connected successfully from environment variable.")
@@ -43,7 +46,7 @@ except Exception as e:
 try:
     GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
     GOOGLE_API_KEY_1 = os.environ.get("GOOGLE_API_KEY_1")
-    
+
     if not GROQ_API_KEY or not GOOGLE_API_KEY_1:
         print("❌ API key environment variables are missing.")
         groq_client = None
@@ -94,25 +97,25 @@ def handle_gemini_request(messages, image_base64=None):
     if not genai:
         def error_stream(): yield "Error: Gemini API is not configured."
         return error_stream, lambda: "Error: Gemini API is not configured."
-    
+
     try:
         gemini_history = [{'role': "model" if msg["role"] == "assistant" else "user", 'parts': [{'text': msg['content']}]} for msg in messages[1:]]
         current_prompt = gemini_history.pop() if gemini_history else {'parts': [{'text': messages[-1]['content']}]}
         prompt_parts = [current_prompt['parts'][0]['text']]
         if image_base64:
             prompt_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": image_base64}})
-        
+
         model = genai.GenerativeModel("gemini-1.5-flash")
         chat_session = model.start_chat(history=gemini_history)
         response_stream = chat_session.send_message(prompt_parts, stream=True)
-        
+
         full_text_container = {"text": ""}
         def generate_stream():
             for chunk in response_stream:
                 if chunk.text:
                     full_text_container["text"] += chunk.text
                     yield chunk.text
-        
+
         get_full_response_func = lambda: full_text_container["text"]
         return generate_stream, get_full_response_func
     except Exception as e:
@@ -166,7 +169,7 @@ def solve_problem():
                     def error_stream(): yield error_message
                     response_streamer = error_stream()
                     get_full_response_func = lambda: error_message
-            
+
             elif 'gemini' in actual_model_id:
                 streamer_gen, get_full_response_func = handle_gemini_request(messages)
                 response_streamer = streamer_gen()
