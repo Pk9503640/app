@@ -1,7 +1,4 @@
-flask
-flask-cors
-groq
-google-generativeai
-Pillow
-firebase-admin
-gunicorn
+fastapi
+uvicorn
+httpx
+python-multipart
