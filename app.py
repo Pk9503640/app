@@ -22,11 +22,13 @@ CORS(app)
 # Initialize Firebase from an environment variable for Render
 try:
     if not firebase_admin._apps:
-        # Render uses environment variables, not file paths.
-        # The JSON key is stored as a single-line string in an env var.
         firebase_creds_json_str = os.environ.get('FIREBASE_CREDENTIALS_JSON')
         if firebase_creds_json_str:
             firebase_creds_dict = json.loads(firebase_creds_json_str)
+            # --- FIX FOR RENDER ---
+            # This line automatically corrects the newline characters in the private key.
+            firebase_creds_dict['private_key'] = firebase_creds_dict['private_key'].replace('\\n', '\n')
+            
             cred = credentials.Certificate(firebase_creds_dict)
             firebase_admin.initialize_app(cred)
             print("✅ Firebase connected successfully from environment variable.")
@@ -160,7 +162,6 @@ def solve_problem():
                     get_full_response_func = lambda: full_text_container["text"]
                 except Exception as e:
                     print(f"GROQ_API_ERROR: {e}")
-                    # Generic error message for Render
                     error_message = f"The Groq API call failed. Error: {e}"
                     def error_stream(): yield error_message
                     response_streamer = error_stream()
@@ -181,4 +182,3 @@ def solve_problem():
         print(f"❌ Unhandled Error in /solve: {e}")
         traceback.print_exc()
         return Response(json.dumps({"error": "An internal server error occurred."}), status=500)
-
